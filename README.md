@@ -41,7 +41,7 @@ To keep this repository lightweight, the default testing video is not included. 
 * **Viewer:** Click **Load Stream**. Use the **Go to LIVE** button to mathematically jump to the exact live edge of the stream. Compare the burned-in video timestamp to the UI latency clock to measure drift.
 
 ### 3. API Reports
-* Input your Harmonic Bearer token and Stream ID in the Ingest tab, then click **Fetch Data** here to pull real-time JSON diagnostics directly from the Harmonic API.
+* Input your Harmonic Bearer token and Stream ID in the Ingest tab, then click **Fetch Data** here to pull stream details.
 ----------
 
 ----------
