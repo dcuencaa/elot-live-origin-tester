@@ -1,20 +1,8 @@
 # ELOT (Edge & Live Origin Tester)
 ELOT  is a unified, locally-hosted web utility designed for end-to-end testing of live video streaming workflows. It allows to simulate live stream ingest (pushing HLS/DASH to origin servers) and validate playback through CDNs (like Akamai) while bypassing common local testing hurdles like CORS and DNS spoofing.
 
-
-## Technical Architecture
-
-ELOT is built on a lightweight, modular architecture to ensure maximum compatibility and zero external dependencies (aside from Node.js).
-
-* **Backend (Node.js & Express):** * **Transmuxing Engine:** Uses `fluent-ffmpeg` and `ffmpeg-static` to spin up headless FFmpeg processes. It strictly enforces broadcast-standard video formatting (`-g 120` keyframes, `-sc_threshold 0`, stereo `-ac 2` downmixing) to prevent browser MSE decoder crashes (`bufferAppendingError`).
-    * **CORS-Bypass Proxy:** A custom `/proxy/*` route that perfectly mirrors base URLs while injecting missing `Access-Control-Allow-Origin` headers, allowing native browser players to fetch fragments from strict CDN edges.
-    * **G2O Auth Generator:** Natively calculates and signs Akamai G2O edge authentication headers via Node's `crypto` module.
-    * **Real-time Logging:** Uses Server-Sent Events (SSE) to pipe FFmpeg `stderr` directly to the browser DOM.
-* **Frontend (Vanilla JS & Bootstrap 5):**
-    * **Playback Engines:** Integrates **HLS.js** for Apple HLS streams and Google's **Shaka Player** for DASH/CMAF.
-    * **CMCD Integration:** Natively passes Common Media Client Data via query strings or headers for CDN log validation.
-
-## 🚀 Installation & Setup
+----------
+## Installation & Setup
 
 ELOT runs entirely on your local machine. You only need to have [Node.js](https://nodejs.org/) installed.
 
@@ -24,7 +12,9 @@ ELOT runs entirely on your local machine. You only need to have [Node.js](https:
     * **Windows:** Double-click `start.bat`.
     *(Note: These scripts will automatically run `npm install` to grab the required packages and then start the server).*
 3.  **Open your Browser:** Navigate to `http://localhost:3000`.
+----------
 
+----------
 ## 📖 User Guide
 
 ELOT is divided into three main tabs:
@@ -51,7 +41,20 @@ To keep this repository lightweight, the default testing video is not included. 
 * **Viewer:** Click **Load Stream**. Use the **Go to LIVE** button to mathematically jump to the exact live edge of the stream. Compare the burned-in video timestamp to the UI latency clock to measure drift.
 
 ### 3. API Reports
-* Input your Bearer token and Stream ID in the Ingest tab, then click **Fetch Data** here to pull real-time JSON diagnostics directly from the Harmonic API.
+* Input your Harmonic Bearer token and Stream ID in the Ingest tab, then click **Fetch Data** here to pull real-time JSON diagnostics directly from the Harmonic API.
+----------
 
+----------
+## Technical Architecture
+
+ELOT is built on a lightweight, modular architecture to ensure maximum compatibility and zero external dependencies (aside from Node.js).
+
+* **Backend (Node.js & Express):** * **Transmuxing Engine:** Uses `fluent-ffmpeg` and `ffmpeg-static` to spin up headless FFmpeg processes. It strictly enforces broadcast-standard video formatting (`-g 120` keyframes, `-sc_threshold 0`, stereo `-ac 2` downmixing) to prevent browser MSE decoder crashes (`bufferAppendingError`).
+    * **CORS-Bypass Proxy:** A custom `/proxy/*` route that perfectly mirrors base URLs while injecting missing `Access-Control-Allow-Origin` headers, allowing native browser players to fetch fragments from strict CDN edges.
+    * **G2O Auth Generator:** Natively calculates and signs Akamai G2O edge authentication headers via Node's `crypto` module.
+    * **Real-time Logging:** Uses Server-Sent Events (SSE) to pipe FFmpeg `stderr` directly to the browser DOM.
+* **Frontend (Vanilla JS & Bootstrap 5):**
+    * **Playback Engines:** Integrates **HLS.js** for Apple HLS streams and Google's **Shaka Player** for DASH/CMAF.
+    * **CMCD Integration:** Natively passes Common Media Client Data via query strings or headers for CDN log validation.
 ---
-*Built for video engineers, by video engineers.*
+
