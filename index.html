@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-LOT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.6/shaka-player.ui.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.6/controls.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <style>
+        .debug-window { height: 200px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4; font-family: monospace; font-size: 0.85rem; }
+        .error-text { color: #f44336; font-weight: bold; }
+        
+        .video-container { background-color: black; border-radius: 4px; overflow: hidden; height: 350px; position: relative; }
+        .video-container video { width: 100% !important; height: 100% !important; object-fit: contain; margin: 0 auto; display: block; }
+        
+        .small-cmd { font-size: 0.7rem; color: #6c757d; background: #f8f9fa; padding: 4px; border-bottom: 1px solid #dee2e6; overflow: hidden; }
+        .local-clock { font-family: monospace; font-size: 1.1rem; font-weight: bold; background: #212529; padding: 2px 10px; border-radius: 4px; border: 1px solid #495057;}
+    </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">M-LOT (Media Live Origin Tester)</span>
+    </div>
+</nav>
+
+<div class="container-fluid px-4">
+    <ul class="nav nav-tabs mb-4" id="mlotTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#ingest" type="button">1. Ingest</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#playback" type="button">2. Playback</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports" type="button">3. API Reports</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="ingest">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header bg-secondary text-white">Ingest Configuration</div>
+                        <div class="card-body">
+                            <form id="ingest-form">
+                                <div class="mb-3">
+                                    <label class="form-label">Video Source</label>
+                                    <select class="form-select" id="video-source">
+                                        <option value="default-mp4">Default Test MP4</option>
+                                        <option value="local-file">Local MP4 (Absolute Path)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3 d-none" id="local-file-input-container">
+                                    <input class="form-control" type="text" id="local-file-path" placeholder="e.g., /Users/name/Desktop/video.mp4">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Loop Count</label>
+                                    <input type="number" class="form-control" id="loop-count" value="5" min="-1">
+                                    <div class="form-text" style="font-size: 0.7rem;">Set to -1 for infinite loop. Default is 5.</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Format</label>
+                                    <select class="form-select" id="ingest-format">
+                                        <option value="hls">HLS</option>
+                                        <option value="dash">DASH</option>
+                                        <option value="cmaf">CMAF</option>
+                                    </select>
+                                </div>
+
+                                <hr>
+                                
+                                <div id="msl5-fetch-section" class="mb-3 p-3 bg-light border rounded">
+                                    <label class="form-label small fw-bold">Fetch Harmonic MSL5 Configuration</label>
+                                    <p class="text-muted" style="font-size: 0.75rem; margin-bottom: 5px;">Uses gateway.mslapis.net automatically.</p>
+                                    <input type="password" class="form-control form-control-sm mb-2" id="msl5-bearer-token" placeholder="Bearer Token">
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-100" id="btn-fetch-msl5-data">Fetch Data</button>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Primary Ingest Domain</label>
+                                    <input type="text" class="form-control" id="ingest-domain" list="ingest-domains-list" required>
+                                    <datalist id="ingest-domains-list"></datalist>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Stream ID</label>
+                                    <input type="text" class="form-control" id="stream-id" list="stream-ids-list" required>
+                                    <datalist id="stream-ids-list"></datalist>
+                                </div>
+                                <div class="mb-3"><label class="form-label">Event Name</label><input type="text" class="form-control" id="event-name" required></div>
+                                <div class="mb-3"><label class="form-label">Master Playlist Filename</label><input type="text" class="form-control" id="master-playlist" value="master.m3u8" required></div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="add-ts" checked>
+                                    <label class="form-check-label">Add Timestamp Filter</label>
+                                </div>
+
+                                <button type="button" class="btn btn-primary w-100" id="btn-start-primary">Start Primary</button>
+                                <button type="button" class="btn btn-danger w-100 mt-2 d-none" id="btn-stop-primary">Stop Primary</button>
+
+                                <hr>
+
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enable-backup">
+                                    <label class="form-check-label">Enable Backup Ingest</label>
+                                </div>
+                                <div id="backup-container" class="d-none p-2 bg-light border rounded mb-3">
+                                    <label class="form-label small">Backup Domain</label>
+                                    <input type="text" class="form-control mb-2" id="backup-domain" placeholder="e.g., b-ep...">
+                                    <button type="button" class="btn btn-info w-100" id="btn-start-backup">Start Backup</button>
+                                    <button type="button" class="btn btn-danger w-100 mt-2 d-none" id="btn-stop-backup">Stop Backup</button>
+                                </div>
+
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card mb-3">
+                        <div class="card-header bg-secondary text-white py-1">Ingest Source Preview</div>
+                        <div class="card-body p-0 video-container" style="height: 250px;">
+                            <video id="ingest-preview-video" autoplay loop muted></video>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-header bg-dark text-white py-1 d-flex justify-content-between align-items-center">
+                            <span>Primary FFmpeg Logs</span>
+                            <div>
+                                <button class="btn btn-xs btn-outline-light py-0 px-2 me-1" style="font-size: 0.75rem;" onclick="copyLogs('primary')">Copy</button>
+                                <button class="btn btn-xs btn-outline-light py-0 px-2" style="font-size: 0.75rem;" onclick="dlLogs('primary')">Download</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="p-2 bg-light border-bottom text-muted" id="ffmpeg-command-display-primary" style="font-family: monospace; font-size: 0.85rem;">Command will appear here...</div>
+                            <div class="debug-window p-2" id="logs-primary">Waiting...</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header bg-dark text-white py-1 d-flex justify-content-between align-items-center">
+                            <span>Backup FFmpeg Logs</span>
+                            <div>
+                                <button class="btn btn-xs btn-outline-light py-0 px-2 me-1" style="font-size: 0.75rem;" onclick="copyLogs('backup')">Copy</button>
+                                <button class="btn btn-xs btn-outline-light py-0 px-2" style="font-size: 0.75rem;" onclick="dlLogs('backup')">Download</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="p-2 bg-light border-bottom text-muted" id="ffmpeg-command-display-backup" style="font-family: monospace; font-size: 0.85rem;">Command will appear here...</div>
+                            <div class="debug-window p-2" id="logs-backup">Waiting...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="playback">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-header bg-secondary text-white">Playback Configuration</div>
+                        <div class="card-body" style="max-height: 800px; overflow-y: auto;">
+                            <div class="mb-3">
+                                <label class="form-label">Origin Type</label>
+                                <select class="form-select" id="playback-origin-type">
+                                    <option value="akamai">Akamai</option>
+                                    <option value="other">Other (Manual URL)</option>
+                                </select>
+                            </div>
+                            
+                            <div id="playback-akamai-fields">
+                                <div class="mb-3"><label class="form-label">Playback Domain</label><input type="text" class="form-control" id="pb-domain" placeholder="e.g., example.akamaized.net"></div>
+                                <div class="mb-3">
+                                    <label class="form-label">Format Prefix</label>
+                                    <select class="form-select" id="pb-format">
+                                        <option value="/hls/live">HLS (/hls/live)</option>
+                                        <option value="/dash/live">DASH (/dash/live)</option>
+                                        <option value="/cmaf/live">CMAF (/cmaf/live)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="playback-other-fields" class="d-none">
+                                <div class="mb-3"><label class="form-label">Full Playback URL</label><input type="text" class="form-control" id="pb-full-url" placeholder="http://..."></div>
+                            </div>
+
+                            <hr>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">CMCD (Common Media Client Data)</label>
+                                <select class="form-select form-select-sm" id="cmcd-mode">
+                                    <option value="none">Disabled</option>
+                                    <option value="query">Query Arguments</option>
+                                    <option value="header">Headers</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Custom Request Headers</label>
+                                <div id="custom-headers-container"></div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="btn-add-header">+ Add Header</button>
+                            </div>
+
+                            <hr>
+
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="enable-g2o">
+                                <label class="form-check-label" for="enable-g2o">Enable G2O Auth</label>
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control form-control-sm mb-2" id="g2o-nonce" placeholder="G2O Nonce">
+                                <input type="password" class="form-control form-control-sm" id="g2o-secret" placeholder="G2O Secret Key">
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="is-proxy" checked>
+                                <label class="form-check-label text-muted">Use Local Proxy Route</label>
+                            </div>
+
+                            <button type="button" class="btn btn-success w-100" id="btn-start-playback">Load Stream</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white py-1 d-flex justify-content-between align-items-center">
+                            <span>Playback Viewer</span>
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-xs btn-danger me-3 py-0 px-2 fw-bold" id="btn-go-live">Go to LIVE</button>
+                                <div class="local-clock" id="latency-clock">00:00:00</div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0 video-container">
+                            <video id="playback-video" controls autoplay></video>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header bg-dark text-white py-1">Playback Debug Logs</div>
+                        <div class="card-body p-0">
+                            <div class="debug-window p-2" id="playback-logs">Ready. Waiting for playback initialization...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="reports">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>Harmonic API Stream Reports</span>
+                    <button class="btn btn-sm btn-light" id="btn-fetch-reports">Fetch Data for Active Stream</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Stream ID</th>
+                                    <th>Status</th>
+                                    <th>Format</th>
+                                    <th>Ingest Loc.</th>
+                                    <th>Backup Loc.</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reports-table-body">
+                                <tr><td colspan="6" class="text-center text-muted py-4">Click "Fetch Data" to pull stats using the Bearer Token and Stream ID from the Ingest Tab.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-light border rounded" style="font-family: monospace; font-size: 0.85rem; max-height: 300px; overflow-y: auto;" id="reports-raw-json">
+                        Raw API output will display here...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let shakaPlayerInstance = null;
+    let hlsJsInstance = null;
+
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('latency-clock').innerText = "Local Time: " + now.toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        shaka.polyfill.installAll();
+        if (shaka.Player.isBrowserSupported()) {
+            shakaPlayerInstance = new shaka.Player(document.getElementById('playback-video'));
+            shakaPlayerInstance.addEventListener('error', e => {
+                logMsg(`Shaka Error: ${e.detail.message || "Decoder/Network Failure"}`, true, 'playback-logs');
+            });
+        }
+    });
+
+    document.getElementById('btn-go-live').addEventListener('click', () => {
+        const vid = document.getElementById('playback-video');
+        
+        const prefix = document.getElementById('pb-format').value;
+        const originType = document.getElementById('playback-origin-type').value;
+        const finalUrl = originType === 'akamai' ? prefix : document.getElementById('pb-full-url').value;
+        const isDash = finalUrl.includes('dash') || finalUrl.includes('.mpd');
+
+        if (isDash && shakaPlayerInstance) {
+            try {
+                vid.currentTime = shakaPlayerInstance.seekRange().end;
+            } catch (e) {
+                vid.currentTime = vid.duration;
+            }
+        } else if (hlsJsInstance) {
+            if (hlsJsInstance.liveSyncPosition !== null) {
+                vid.currentTime = hlsJsInstance.liveSyncPosition;
+            } else {
+                vid.currentTime = vid.duration; 
+            }
+        } else {
+            vid.currentTime = vid.duration;
+        }
+        vid.play().catch(() => {});
+        logMsg("Forced seek to Live Edge.", false, 'playback-logs');
+    });
+
+    function logMsg(msg, isError=false, targetId='logs-primary') {
+        const win = document.getElementById(targetId);
+        if (win) {
+            win.innerHTML += `<div class="${isError ? 'error-text' : ''}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
+        }
+    }
+
+    window.dlLogs = function(target) { 
+        const blob = new Blob([document.getElementById(`logs-${target}`).innerText], {type: 'text/plain'}); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${target}-logs.txt`; a.click(); 
+    }
+    
+    window.copyLogs = function(target) {
+        const text = document.getElementById(`logs-${target}`).innerText;
+        navigator.clipboard.writeText(text).then(() => alert(`${target.toUpperCase()} Logs copied to clipboard!`));
+    }
+
+    const logSource = new EventSource('/api/ingest/logs');
+    logSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            logMsg(data.msg, false, `logs-${data.target}`);
+        } catch(e) {
+            logMsg(event.data, false, 'logs-primary');
+        }
+    };
+
+    document.getElementById('video-source').addEventListener('change', e => {
+        document.getElementById('local-file-input-container').classList.toggle('d-none', e.target.value !== 'local-file');
+    });
+
+    document.getElementById('ingest-format').addEventListener('change', e => {
+        document.getElementById('master-playlist').value = e.target.value === 'dash' ? 'master.mpd' : 'master.m3u8';
+    });
+
+    document.getElementById('playback-origin-type').addEventListener('change', e => {
+        const isOther = e.target.value === 'other';
+        document.getElementById('playback-akamai-fields').classList.toggle('d-none', isOther);
+        document.getElementById('playback-other-fields').classList.toggle('d-none', !isOther);
+    });
+
+    document.getElementById('enable-backup').addEventListener('change', e => {
+        document.getElementById('backup-container').classList.toggle('d-none', !e.target.checked);
+    });
+
+    document.getElementById('ingest-domain').addEventListener('input', e => {
+        const val = e.target.value.trim();
+        if (val.startsWith('p-ep') && val.includes('mslentrypoint')) {
+            const match = val.match(/^p-ep(\d+)/);
+            if (match && match[1]) {
+                document.getElementById('stream-id').value = match[1];
+            }
+            const backupInput = document.getElementById('backup-domain');
+            if (backupInput) backupInput.value = val.replace('p-ep', 'b-ep');
+        }
+    });
+
+    document.getElementById('btn-add-header').addEventListener('click', () => {
+        const container = document.getElementById('custom-headers-container');
+        const row = document.createElement('div');
+        row.className = 'd-flex mb-2 header-row';
+        row.innerHTML = `
+            <input type="text" class="form-control form-control-sm me-2 hdr-key" placeholder="Header Name (e.g., Authorization)">
+            <input type="text" class="form-control form-control-sm me-2 hdr-val" placeholder="Value">
+            <button type="button" class="btn btn-sm btn-outline-danger btn-rm-hdr">X</button>
+        `;
+        row.querySelector('.btn-rm-hdr').addEventListener('click', () => row.remove());
+        container.appendChild(row);
+    });
+
+    document.getElementById('btn-fetch-msl5-data').addEventListener('click', async () => {
+        const token = document.getElementById('msl5-bearer-token').value;
+        if (!token) return alert("Bearer Token required.");
+        
+        try {
+            const res = await fetch('/api/msl5/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token })
+            });
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error);
+
+            const dList = document.getElementById('ingest-domains-list');
+            const sList = document.getElementById('stream-ids-list');
+            dList.innerHTML = ''; sList.innerHTML = '';
+
+            data.domains.forEach(d => dList.appendChild(new Option(d, d)));
+            data.streams.forEach(s => sList.appendChild(new Option(s, s)));
+            
+            alert(`Fetched ${data.domains.length} domains and ${data.streams.length} stream IDs.`);
+        } catch (err) {
+            alert("Error fetching Harmonic data: " + err.message);
+        }
+    });
+
+    async function executeIngestStart(target) {
+        const sourceType = document.getElementById('video-source').value;
+        const btnStart = document.getElementById(`btn-start-${target}`);
+        const domain = target === 'primary' ? document.getElementById('ingest-domain').value : document.getElementById('backup-domain').value;
+        
+        btnStart.disabled = true;
+
+        if (target === 'primary' && sourceType === 'default-mp4') {
+            document.getElementById('ingest-preview-video').src = '/api/local-preview'; 
+        }
+
+        const payload = {
+            target,
+            sourceType, 
+            localPath: document.getElementById('local-file-path').value,
+            loopCount: document.getElementById('loop-count') ? document.getElementById('loop-count').value : 5,
+            domain,
+            streamId: document.getElementById('stream-id').value,
+            eventName: document.getElementById('event-name').value,
+            master: document.getElementById('master-playlist').value,
+            addTimestamp: document.getElementById('add-ts') ? document.getElementById('add-ts').checked : false
+        };
+
+        const res = await fetch('/api/ingest/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        
+        document.getElementById(`ffmpeg-command-display-${target}`).innerText = data.command || "Error generating command";
+        btnStart.classList.add('d-none');
+        btnStart.disabled = false;
+        document.getElementById(`btn-stop-${target}`).classList.remove('d-none');
+    }
+
+    async function executeIngestStop(target) {
+        await fetch('/api/ingest/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target }) });
+        
+        if(target === 'primary') {
+            const vid = document.getElementById('ingest-preview-video');
+            if(vid) {
+                vid.pause();
+                vid.removeAttribute('src');
+                vid.load();
+            }
+        }
+
+        document.getElementById(`btn-start-${target}`).classList.remove('d-none');
+        document.getElementById(`btn-stop-${target}`).classList.add('d-none');
+    }
+
+    document.getElementById('btn-start-primary').addEventListener('click', () => executeIngestStart('primary'));
+    document.getElementById('btn-stop-primary').addEventListener('click', () => executeIngestStop('primary'));
+    document.getElementById('btn-start-backup').addEventListener('click', () => executeIngestStart('backup'));
+    document.getElementById('btn-stop-backup').addEventListener('click', () => executeIngestStop('backup'));
+
+    document.getElementById('btn-start-playback').addEventListener('click', async () => {
+        let finalUrl = "";
+        const originType = document.getElementById('playback-origin-type').value;
+        const isG2OEnabled = document.getElementById('enable-g2o').checked;
+        const cmcdMode = document.getElementById('cmcd-mode').value;
+        const g2oNonce = document.getElementById('g2o-nonce').value;
+        const g2oSecret = document.getElementById('g2o-secret').value;
+        const videoElement = document.getElementById('playback-video');
+        const logWindow = document.getElementById('playback-logs');
+        
+        logWindow.innerHTML = ''; 
+
+        if (hlsJsInstance) { hlsJsInstance.destroy(); }
+        await shakaPlayerInstance.unload();
+        videoElement.removeAttribute('src');
+        videoElement.load();
+
+        const customHeaders = {};
+        document.querySelectorAll('.header-row').forEach(row => {
+            const key = row.querySelector('.hdr-key').value.trim();
+            const val = row.querySelector('.hdr-val').value.trim();
+            if (key) customHeaders[key] = val;
+        });
+
+        if (originType === 'akamai') {
+            const domain = document.getElementById('pb-domain').value || document.getElementById('ingest-domain').value;
+            const prefix = document.getElementById('pb-format').value;
+            const streamId = document.getElementById('stream-id').value;
+            const eventName = document.getElementById('event-name').value;
+            let master = document.getElementById('master-playlist').value;
+
+            if (prefix === '/dash/live' && master.endsWith('.m3u8')) master = master.replace('.m3u8', '.mpd');
+            
+            const pathParts = [streamId, eventName, master].filter(Boolean).join('/');
+            finalUrl = `https://${domain}${prefix}/${pathParts}`;
+        } else {
+            finalUrl = document.getElementById('pb-full-url').value;
+        }
+
+        const useProxy = document.getElementById('is-proxy').checked;
+        
+        let urlToLoad = finalUrl;
+        if (useProxy) {
+            urlToLoad = `http://localhost:3000/proxy/${finalUrl}`;
+            logMsg("Routing requests through local proxy.", false, 'playback-logs');
+        }
+
+        logMsg("Attempting to load: " + finalUrl, false, 'playback-logs');
+        
+        if (cmcdMode !== 'none') {
+            logMsg(`CMCD Enabled: Data sent via ${cmcdMode}`, false, 'playback-logs');
+        }
+
+        if (finalUrl.includes('.m3u8')) {
+            logMsg("Detected HLS. Initializing HLS.js engine.", false, 'playback-logs');
+            
+            if (Hls.isSupported()) {
+                
+                const hlsConfig = {
+                    xhrSetup: function(xhr) {
+                        if (isG2OEnabled) {
+                            xhr.setRequestHeader('X-MLOT-G2O-Secret', g2oSecret);
+                            xhr.setRequestHeader('X-MLOT-G2O-Nonce', g2oNonce);
+                        }
+                        for (const [key, val] of Object.entries(customHeaders)) {
+                            xhr.setRequestHeader(key, val);
+                        }
+                    }
+                };
+
+                if (cmcdMode !== 'none') {
+                    hlsConfig.cmcd = {
+                        sessionId: Date.now().toString(),
+                        contentId: document.getElementById('stream-id').value || 'mlot-stream',
+                        useHeaders: cmcdMode === 'header'
+                    };
+                }
+
+                hlsJsInstance = new Hls(hlsConfig);
+
+                hlsJsInstance.loadSource(urlToLoad);
+                hlsJsInstance.attachMedia(videoElement);
+                hlsJsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    videoElement.play().catch(e => logMsg("Autoplay blocked by browser. Click play manually.", false, 'playback-logs'));
+                    logMsg("Stream loaded successfully.", false, 'playback-logs');
+                });
+                hlsJsInstance.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) logMsg("HLS.js Fatal Error: " + data.type, true, 'playback-logs');
+                });
+            }
+
+        } else {
+            logMsg("Detected DASH/CMAF. Initializing Shaka Player engine.", false, 'playback-logs');
+            
+            shakaPlayerInstance.getNetworkingEngine().clearAllRequestFilters();
+            
+            if (cmcdMode !== 'none') {
+                shakaPlayerInstance.configure({
+                    cmcd: {
+                        enabled: true,
+                        useHeaders: cmcdMode === 'header',
+                        contentId: document.getElementById('stream-id').value || 'mlot-stream',
+                        sessionId: Date.now().toString()
+                    }
+                });
+            } else {
+                shakaPlayerInstance.configure({ cmcd: { enabled: false } });
+            }
+            
+            shakaPlayerInstance.getNetworkingEngine().registerRequestFilter((type, request) => {
+                if (isG2OEnabled) {
+                    request.headers['X-MLOT-G2O-Secret'] = g2oSecret;
+                    request.headers['X-MLOT-G2O-Nonce'] = g2oNonce;
+                }
+                for (const [key, val] of Object.entries(customHeaders)) {
+                    request.headers[key] = val;
+                }
+            });
+
+            try {
+                await shakaPlayerInstance.load(urlToLoad);
+                logMsg("Stream loaded successfully.", false, 'playback-logs');
+                videoElement.play().catch(e => logMsg("Autoplay blocked by browser. Click play manually.", false, 'playback-logs'));
+            } catch (e) {
+                logMsg("Shaka Load Error: " + e.message, true, 'playback-logs');
+            }
+        }
+    });
+
+    document.getElementById('btn-fetch-reports').addEventListener('click', async () => {
+        const token = document.getElementById('msl5-bearer-token').value;
+        const streamId = document.getElementById('stream-id').value;
+
+        if (!token || !streamId) return alert("Bearer Token and Stream ID are required in the Ingest tab.");
+
+        const btn = document.getElementById('btn-fetch-reports');
+        btn.innerText = "Fetching...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/msl5/reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, streamId })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            document.getElementById('reports-table-body').innerHTML = `
+                <tr>
+                    <td>${data.stream_id || 'N/A'}</td>
+                    <td><span class="badge ${data.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}">${data.status || 'UNKNOWN'}</span></td>
+                    <td>${data.format || 'N/A'}</td>
+                    <td>${data.ingest_location || 'N/A'}</td>
+                    <td>${data.backup_ingest_location || 'N/A'}</td>
+                    <td>${new Date(data.created_at).toLocaleString() || 'N/A'}</td>
+                </tr>
+            `;
+            document.getElementById('reports-raw-json').innerText = JSON.stringify(data, null, 2);
+
+        } catch (err) {
+            alert("Error fetching reports: " + err.message);
+        } finally {
+            btn.innerText = "Fetch Data for Active Stream";
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
