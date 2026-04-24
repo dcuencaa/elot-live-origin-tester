@@ -32,7 +32,7 @@ To keep this repository lightweight, the default testing video is not included. 
      https://download.blender.org/demo/movies/BBB/bbb_sunflower_1080p_30fps_normal.mp4.zip
      bbb_sunflower_1080p_30fps_normal.mp4.zip (from the official Blender foundation).
 2.  **Extract the zip file.**
-3.  **Move the extracted video file into the ./mp4/ folder located in the root of this repository and renam it "test.mp4".**
+3.  **Move the extracted video file into the ./mp4/ folder located in the root of this repository and rename it "test.mp4".**
 
 ### 2. Playback
 * **Configuration:** Select your CDN origin (e.g., Akamai), format prefix, and custom headers.
