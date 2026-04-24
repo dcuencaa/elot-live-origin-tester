@@ -1,0 +1,7 @@
+Note on the Default Test MP4 File: To keep this repository lightweight, the default testing video is not included. 
+To use the "Default Test MP4" option as your ingest source, please follow these steps:
+
+-Download the sample video zip file here: https://download.blender.org/demo/movies/BBB/bbb_sunflower_1080p_30fps_normal.mp4.zip 
+
+-Extract the zip file.
+- Move the extracted video file into the ./mp4/ folder located in the root of this repository and renam it "test.mp4".
