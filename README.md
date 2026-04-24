@@ -1,13 +1,8 @@
-# elot-live-origin-tester
-ELOT  is a unified, locally-hosted web utility designed for end-to-end testing of live video streaming workflows. It allows video engineers to simulate live stream ingest (pushing HLS/DASH to origin servers) and seamlessly validate playback through CDNs (like Akamai) while bypassing common local testing hurdles like CORS and DNS spoofing.
+# ELOT (Edge & Live Origin Tester)
+ELOT  is a unified, locally-hosted web utility designed for end-to-end testing of live video streaming workflows. It allows to simulate live stream ingest (pushing HLS/DASH to origin servers) and validate playback through CDNs (like Akamai) while bypassing common local testing hurdles like CORS and DNS spoofing.
 
-# 🌽 ELOT (Edge & Live Origin Tester)
 
-![ELOT Logo Placeholder](https://via.placeholder.com/150?text=Techie+Sweet+Corn+Logo)
-
-**ELOT** is a unified, locally-hosted web utility designed for end-to-end testing of live video streaming workflows. It allows video engineers to simulate live stream ingest (pushing HLS/DASH to origin servers) and seamlessly validate playback through CDNs (like Akamai) while bypassing common local testing hurdles like CORS and token authentication.
-
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ELOT is built on a lightweight, modular architecture to ensure maximum compatibility and zero external dependencies (aside from Node.js).
 
@@ -30,7 +25,17 @@ ELOT runs entirely on your local machine. You only need to have [Node.js](https:
     *(Note: These scripts will automatically run `npm install` to grab the required packages and then start the server).*
 3.  **Open your Browser:** Navigate to `http://localhost:3000`.
 
-Note on the Default Video File:
+## 📖 User Guide
+
+ELOT is divided into three main tabs:
+
+### 1. Ingest
+* **Video Source:** Choose the default "Default Test MP4" loop or input the absolute path to a local `.mp4` file.
+* **MSL5 Configuration:** Enter a Bearer token to automatically fetch and populate your Harmonic MSL5 primary/backup domains and Stream IDs.
+* **Timestamp Filter:** Check this to burn a live local clock directly into the video feed to measure glass-to-glass latency.
+* **Execution:** Click **Start Primary** (and optionally **Start Backup**) to begin HTTP PUT ingest to your origin. Real-time FFmpeg logs will appear on the right.
+
+Note on the Default Test MP4 File:
 To keep this repository lightweight, the default testing video is not included. To use the "Default Test MP4" option as your ingest source, please follow these steps:
 
 1.  **Download the sample video zip file here**:
@@ -38,16 +43,6 @@ To keep this repository lightweight, the default testing video is not included. 
      bbb_sunflower_1080p_30fps_normal.mp4.zip (from the official Blender foundation).
 2.  **Extract the zip file.**
 3.  **Move the extracted video file into the ./mp4/ folder located in the root of this repository and renam it "test.mp4".**
-
-## 📖 User Guide
-
-ELOT is divided into three main tabs:
-
-### 1. Ingest
-* **Video Source:** Choose the default "Big Buck Bunny" loop or input the absolute path to a local `.mp4` file.
-* **MSL5 Configuration:** Enter a Bearer token to automatically fetch and populate your Harmonic MSL5 primary/backup domains and Stream IDs.
-* **Timestamp Filter:** Check this to burn a live local clock directly into the video feed to measure glass-to-glass latency.
-* **Execution:** Click **Start Primary** (and optionally **Start Backup**) to begin HTTP PUT ingest to your origin. Real-time FFmpeg logs will appear on the right.
 
 ### 2. Playback
 * **Configuration:** Select your CDN origin (e.g., Akamai), format prefix, and custom headers.
