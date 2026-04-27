@@ -15,7 +15,7 @@ ELOT runs entirely on your local machine. You only need to have [Node.js](https:
 ----------
 
 ----------
-## 📖 User Guide
+## User Guide
 
 ELOT is divided into three main tabs:
 
